@@ -11,7 +11,8 @@
 //!    amount is refunded to the commuter (used for disputes / no-shows).
 
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, symbol_short, token, Address, Env, Symbol,
+    contract, contracterror, contractimpl, contracttype, symbol_short, token, Address, BytesN, Env,
+    Symbol,
 };
 
 #[contracttype]
@@ -243,6 +244,19 @@ impl FareEscrow {
             .instance()
             .set(&DataKey::RideCount, &(id + 1));
         id
+    }
+
+    /// Upgrade this contract in place: replace its WASM bytecode while keeping
+    /// the same contract id and all stored rides/admin/token state.
+    ///
+    /// `new_wasm_hash` is the SHA-256 hash of a WASM that has already been
+    /// uploaded to the ledger (`stellar contract upload` prints this hash).
+    /// Only the admin set in `init` may call this. See `scripts/upgrade.js`.
+    pub fn upgrade(env: Env, new_wasm_hash: BytesN<32>) {
+        let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
+        admin.require_auth();
+
+        env.deployer().update_current_contract_wasm(new_wasm_hash);
     }
 }
 
