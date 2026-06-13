@@ -1,94 +1,39 @@
-// Step 1 — Issue the PHPx test stablecoin on Stellar testnet.
+// Step 1 — Create + fund the deployer account on Stellar testnet.
 //
-// Creates an issuer and a distributor account, funds them via Friendbot,
-// establishes the distributor's trustline to PHPx, and issues the full supply
-// from the issuer to the distributor.
+// With native XLM there is no token to issue; we only need one funded account
+// to deploy the contract and act as its admin / read-only reader.
 //
 //   node setup.js
 import {
   Keypair,
-  Asset,
-  Operation,
-  TransactionBuilder,
-  BASE_FEE,
-  horizon,
-  NETWORK_PASSPHRASE,
-  ASSET_CODE,
-  PHPX_TOTAL_SUPPLY,
   fundWithFriendbot,
   loadDeployment,
   saveDeployment,
 } from "./config.js";
 
 async function main() {
-  console.log("ParaPo :: PHPx issuance on Stellar testnet\n");
+  console.log("ParaPo :: create + fund deployer on Stellar testnet\n");
   const deployment = loadDeployment();
 
-  if (deployment.issuer && deployment.distributor) {
-    console.log("Issuer + distributor already exist; skipping creation.");
-    console.log("  issuer      :", deployment.issuer.publicKey);
-    console.log("  distributor :", deployment.distributor.publicKey);
+  if (deployment.admin && deployment.admin.secret) {
+    console.log("Deployer already exists; skipping creation.");
+    console.log("  admin :", deployment.admin.publicKey);
     return;
   }
 
-  const issuer = Keypair.random();
-  const distributor = Keypair.random();
-  console.log("Generated keypairs:");
-  console.log("  issuer      :", issuer.publicKey());
-  console.log("  distributor :", distributor.publicKey());
+  const admin = Keypair.random();
+  console.log("Generated deployer keypair:");
+  console.log("  admin :", admin.publicKey());
 
-  console.log("\nFunding accounts via Friendbot...");
-  await fundWithFriendbot(issuer.publicKey());
-  await fundWithFriendbot(distributor.publicKey());
-
-  const asset = new Asset(ASSET_CODE, issuer.publicKey());
-
-  console.log("\nEstablishing distributor trustline to PHPx...");
-  {
-    const account = await horizon.loadAccount(distributor.publicKey());
-    const tx = new TransactionBuilder(account, {
-      fee: BASE_FEE,
-      networkPassphrase: NETWORK_PASSPHRASE,
-    })
-      .addOperation(Operation.changeTrust({ asset }))
-      .setTimeout(3600)
-      .build();
-    tx.sign(distributor);
-    await horizon.submitTransaction(tx);
-  }
-
-  console.log(`Issuing ${PHPX_TOTAL_SUPPLY} ${ASSET_CODE} to distributor...`);
-  {
-    const account = await horizon.loadAccount(issuer.publicKey());
-    const tx = new TransactionBuilder(account, {
-      fee: BASE_FEE,
-      networkPassphrase: NETWORK_PASSPHRASE,
-    })
-      .addOperation(
-        Operation.payment({
-          destination: distributor.publicKey(),
-          asset,
-          amount: PHPX_TOTAL_SUPPLY,
-        })
-      )
-      .setTimeout(3600)
-      .build();
-    tx.sign(issuer);
-    await horizon.submitTransaction(tx);
-  }
+  console.log("\nFunding account via Friendbot...");
+  await fundWithFriendbot(admin.publicKey());
 
   deployment.network = "testnet";
-  deployment.assetCode = ASSET_CODE;
-  deployment.issuer = { publicKey: issuer.publicKey(), secret: issuer.secret() };
-  deployment.distributor = {
-    publicKey: distributor.publicKey(),
-    secret: distributor.secret(),
-  };
-
-  console.log("\nDone. PHPx issued.");
+  deployment.admin = { publicKey: admin.publicKey(), secret: admin.secret() };
   saveDeployment(deployment);
+
   console.log(
-    "\nNext: `npm run deploy` to wrap the SAC and deploy the fare-escrow contract."
+    "\nDone. Next: `npm run deploy` to resolve the native XLM SAC and deploy the fare-escrow contract."
   );
 }
 

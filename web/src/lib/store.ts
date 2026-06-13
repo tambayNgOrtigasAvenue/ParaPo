@@ -7,7 +7,7 @@ import {
   getWallet,
   unlock as unlockWallet,
 } from "./stellar/wallet";
-import { getBalances, Balances } from "./stellar/phpx";
+import { getBalances, Balances } from "./stellar/xlm";
 
 interface SessionState {
   record: WalletRecord | null;
@@ -63,7 +63,7 @@ export const useSession = create<SessionState>((set, get) => ({
       const balances = await getBalances(record.publicKey);
       set({ balances });
     } catch {
-      set({ balances: { xlm: "0", phpx: "0", hasTrustline: false } });
+      set({ balances: { xlm: "0" } });
     } finally {
       set({ loading: false });
     }

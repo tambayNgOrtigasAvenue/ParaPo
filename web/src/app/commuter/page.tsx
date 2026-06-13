@@ -19,10 +19,10 @@ import {
 import { parseQrToken, verifyQrToken } from "@/lib/qr";
 import { useGeolocation } from "@/lib/gps";
 import { startRide, finalizeRide } from "@/lib/stellar/escrow";
-import { toStroops } from "@/lib/stellar/phpx";
+import { toStroops } from "@/lib/stellar/xlm";
 import { enqueue, isOnline } from "@/lib/queue";
 import { saveRide } from "@/lib/rides";
-import { php, shortKey } from "@/lib/format";
+import { xlm, shortKey } from "@/lib/format";
 
 type Phase =
   | "idle"
@@ -118,7 +118,7 @@ function CommuterApp() {
         routeId: route.id,
         routeName: route.name,
         boardStop: route.stops[boardIdx].name,
-        maxFarePhp: max,
+        maxFare: max,
         status: "active",
         startedAt: Date.now(),
       });
@@ -126,7 +126,7 @@ function CommuterApp() {
       gps.start();
       setPhase("riding");
     } catch (e: any) {
-      setError(e?.message ?? "Could not board. Check your PHPx balance.");
+      setError(e?.message ?? "Could not board. Check your XLM balance.");
     } finally {
       setBusy(false);
     }
@@ -169,9 +169,9 @@ function CommuterApp() {
         routeName: route.name,
         boardStop: route.stops[boardIdx].name,
         alightStop: route.stops[alightIdx].name,
-        maxFarePhp: maxFare,
-        actualFarePhp: actual,
-        refundPhp: refund,
+        maxFare: maxFare,
+        actualFare: actual,
+        refund: refund,
         status: "completed",
         startedAt: Date.now(),
         finalizedAt: Date.now(),
@@ -342,13 +342,13 @@ function ConfirmBoard({
       <div className="card flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Locked in escrow (max fare)</p>
-          <p className="mt-1 text-3xl font-extrabold text-accent">{php(max)}</p>
+          <p className="mt-1 text-3xl font-extrabold text-accent">{xlm(max)}</p>
           <p className="mt-1 text-xs text-slate-400">Refunded if you alight early.</p>
         </div>
       </div>
 
       <button className="btn-primary w-full py-4" onClick={onConfirm} disabled={busy}>
-        {busy ? "Locking fare on-chain…" : `Confirm & lock ${php(max)}`}
+        {busy ? "Locking fare on-chain…" : `Confirm & lock ${xlm(max)}`}
       </button>
       <button className="btn-ghost w-full" onClick={onBack} disabled={busy}>
         Rescan
@@ -381,7 +381,7 @@ function RidingView({
           <span className="h-2 w-2 animate-pulse rounded-full bg-brand" /> On board · {route.id}
         </p>
         <p className="mt-2 text-sm text-slate-500">
-          {php(maxFare)} locked. You&apos;ll only pay for distance travelled.
+          {xlm(maxFare)} locked. You&apos;ll only pay for distance travelled.
         </p>
         <div className="mt-4">
           <RouteMap route={route} boardIdx={boardIdx} alightIdx={estIdx} progressKm={boardKm + distanceKm} />
@@ -441,14 +441,14 @@ function ConfirmAlight({
         </select>
       </div>
       <div className="card space-y-2">
-        <Line label="Locked" value={php(maxFare)} />
-        <Line label="Actual fare" value={php(actual)} strong />
+        <Line label="Locked" value={xlm(maxFare)} />
+        <Line label="Actual fare" value={xlm(actual)} strong />
         <div className="border-t border-slate-100 pt-2">
-          <Line label="Refund to you" value={php(refund)} good />
+          <Line label="Refund to you" value={xlm(refund)} good />
         </div>
       </div>
       <button className="btn-primary w-full py-4" onClick={onConfirm} disabled={busy}>
-        {busy ? "Finalizing on-chain…" : `Pay ${php(actual)}`}
+        {busy ? "Finalizing on-chain…" : `Pay ${xlm(actual)}`}
       </button>
     </section>
   );
@@ -490,9 +490,9 @@ function Receipt({
         </div>
       </div>
       <div className="card space-y-2">
-        <Line label="Locked in escrow" value={php(maxFare)} />
-        <Line label="Fare paid to driver" value={php(actual)} strong />
-        <Line label="Refunded to you" value={php(refund)} good />
+        <Line label="Locked in escrow" value={xlm(maxFare)} />
+        <Line label="Fare paid to driver" value={xlm(actual)} strong />
+        <Line label="Refunded to you" value={xlm(refund)} good />
       </div>
       <button className="btn-primary w-full" onClick={onDone}>
         Done

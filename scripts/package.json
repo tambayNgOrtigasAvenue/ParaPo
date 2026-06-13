@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "ParaPo deployment scripts: issue PHPx, wrap SAC, deploy fare-escrow, seed demo wallets.",
+  "description": "ParaPo deployment scripts: fund deployer, resolve native XLM SAC, deploy fare-escrow, seed demo wallets.",
   "scripts": {
     "setup": "node setup.js",
     "deploy": "node deploy.js",

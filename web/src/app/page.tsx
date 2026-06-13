@@ -75,7 +75,7 @@ export default function Home() {
         </section>
 
         <footer className="mt-auto pt-2 text-center text-xs text-slate-400">
-          Stellar testnet · PHPx stablecoin · No real funds
+          Stellar testnet · Native XLM · No real funds
         </footer>
       </main>
     </>

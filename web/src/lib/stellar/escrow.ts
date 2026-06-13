@@ -53,7 +53,7 @@ function decodeRide(raw: any): Ride {
   };
 }
 
-/** Board: lock `maxFareStroops` PHPx and open a ride. Returns the ride id. */
+/** Board: lock `maxFareStroops` XLM and open a ride. Returns the ride id. */
 export async function startRide(
   signer: Keypair,
   driver: string,

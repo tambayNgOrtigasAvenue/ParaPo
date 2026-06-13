@@ -1,5 +1,5 @@
-// Step 2 — Wrap PHPx as a Stellar Asset Contract (SAC) and deploy + initialize
-// the fare-escrow Soroban contract. Writes web/.env.local for the PWA.
+// Step 2 — Resolve the native XLM Stellar Asset Contract (SAC) and deploy +
+// initialize the fare-escrow Soroban contract. Writes web/.env.local for the PWA.
 //
 //   node deploy.js
 //
@@ -9,7 +9,6 @@ import { existsSync, writeFileSync } from "node:fs";
 import {
   RPC_URL,
   NETWORK_PASSPHRASE,
-  ASSET_CODE,
   WASM_PATH,
   WEB_ENV_FILE,
   ROOT,
@@ -39,15 +38,14 @@ function netArgs() {
 }
 
 async function main() {
-  console.log("ParaPo :: deploy fare-escrow + wrap PHPx SAC\n");
+  console.log("ParaPo :: deploy fare-escrow + resolve native XLM SAC\n");
   const d = loadDeployment();
-  if (!d.issuer || !d.distributor) {
-    throw new Error("Run `npm run setup` first (no issuer/distributor found).");
+  if (!d.admin || !d.admin.secret) {
+    throw new Error("Run `npm run setup` first (no deployer/admin found).");
   }
 
-  const adminSecret = d.distributor.secret;
-  const adminPublic = d.distributor.publicKey;
-  const assetArg = `${ASSET_CODE}:${d.issuer.publicKey}`;
+  const adminSecret = d.admin.secret;
+  const adminPublic = d.admin.publicKey;
 
   // 1. Build the contract wasm if needed.
   if (!existsSync(WASM_PATH)) {
@@ -55,26 +53,27 @@ async function main() {
     execFileSync("stellar", ["contract", "build"], { cwd: ROOT, stdio: "inherit" });
   }
 
-  // 2. Compute + deploy the PHPx Stellar Asset Contract (SAC).
-  console.log("\nResolving PHPx SAC contract id...");
+  // 2. Resolve the native XLM SAC contract id (deterministic per network).
+  console.log("\nResolving native XLM SAC contract id...");
   const sacId = stellar([
     "contract",
     "id",
     "asset",
     "--asset",
-    assetArg,
+    "native",
     ...netArgs(),
   ]).match(CID_RE)[0];
-  console.log("  SAC id:", sacId);
+  console.log("  XLM SAC id:", sacId);
 
-  console.log("Deploying (wrapping) the SAC instance...");
+  // 3. Ensure the native SAC instance exists on this network (no-op if already).
+  console.log("Ensuring the native SAC is deployed...");
   const wrapOut = stellar(
     [
       "contract",
       "asset",
       "deploy",
       "--asset",
-      assetArg,
+      "native",
       "--source-account",
       adminSecret,
       ...netArgs(),
@@ -82,10 +81,10 @@ async function main() {
     { allowFail: true }
   );
   if (/already exists|AlreadyExist|exists/i.test(wrapOut)) {
-    console.log("  SAC already deployed — continuing.");
+    console.log("  Native SAC already deployed — continuing.");
   }
 
-  // 3. Deploy the fare-escrow contract.
+  // 4. Deploy the fare-escrow contract.
   console.log("\nDeploying fare-escrow contract...");
   const deployOut = stellar([
     "contract",
@@ -99,7 +98,7 @@ async function main() {
   const contractId = deployOut.match(CID_RE)[0];
   console.log("  fare-escrow id:", contractId);
 
-  // 4. Initialize it with admin + PHPx SAC address.
+  // 5. Initialize it with admin + native XLM SAC address.
   console.log("\nInitializing contract (init)...");
   stellar(
     [
@@ -120,10 +119,9 @@ async function main() {
     { allowFail: true }
   );
 
-  // 5. Persist + write web env.
+  // 6. Persist + write web env.
   d.sacId = sacId;
   d.contractId = contractId;
-  d.admin = { publicKey: adminPublic };
   saveDeployment(d);
 
   const env = [
@@ -132,10 +130,9 @@ async function main() {
     `NEXT_PUBLIC_RPC_URL=${RPC_URL}`,
     `NEXT_PUBLIC_HORIZON_URL=https://horizon-testnet.stellar.org`,
     `NEXT_PUBLIC_NETWORK_PASSPHRASE=${NETWORK_PASSPHRASE}`,
-    `NEXT_PUBLIC_PHPX_CODE=${ASSET_CODE}`,
-    `NEXT_PUBLIC_PHPX_ISSUER=${d.issuer.publicKey}`,
-    `NEXT_PUBLIC_PHPX_SAC=${sacId}`,
+    `NEXT_PUBLIC_XLM_SAC=${sacId}`,
     `NEXT_PUBLIC_FARE_ESCROW_ID=${contractId}`,
+    `NEXT_PUBLIC_READER=${adminPublic}`,
     `NEXT_PUBLIC_ORACLE_URL=http://localhost:4000`,
     "",
   ].join("\n");

@@ -10,8 +10,8 @@ import { ROUTES, getRoute, routeMaxFare, VEHICLE_LABEL } from "@/lib/fares";
 import { buildQrToken, newSessionId, QR_ROTATE_MS } from "@/lib/qr";
 import { useGeolocation } from "@/lib/gps";
 import { fetchRides, Ride } from "@/lib/stellar/escrow";
-import { fromStroops, sendPHPx } from "@/lib/stellar/phpx";
-import { php, shortKey, formatDateTime } from "@/lib/format";
+import { fromStroops, sendXlm } from "@/lib/stellar/xlm";
+import { xlm, shortKey, formatDateTime } from "@/lib/format";
 import { RideStatusPill } from "@/components/RideStatusPill";
 
 type Tab = "drive" | "earnings" | "cashout";
@@ -93,7 +93,7 @@ function DriveTab() {
             <span>
               <span className="font-semibold text-ink">{r.name}</span>
               <span className="block text-xs text-slate-500">
-                {VEHICLE_LABEL[r.vehicle]} · max {php(routeMaxFare(r))}
+                {VEHICLE_LABEL[r.vehicle]} · max {xlm(routeMaxFare(r))}
               </span>
             </span>
             <span className="pill bg-brand/10 text-brand-dark">{r.id}</span>
@@ -161,7 +161,7 @@ function EarningsTab() {
     <section className="space-y-3">
       <div className="card">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total earned (on-chain)</p>
-        <p className="mt-1 text-3xl font-extrabold text-brand-dark">{php(total)}</p>
+        <p className="mt-1 text-3xl font-extrabold text-brand-dark">{xlm(total)}</p>
       </div>
       {error && <p className="text-sm font-medium text-danger">{error}</p>}
       {!rides && !error && <p className="text-sm text-slate-400">Loading rides…</p>}
@@ -181,7 +181,7 @@ function EarningsTab() {
           <div className="text-right">
             <RideStatusPill status={r.status} />
             <p className="mt-1 text-sm font-bold text-brand-dark">
-              {r.status === "Completed" ? php(Number(fromStroops(r.actualFare))) : "—"}
+              {r.status === "Completed" ? xlm(Number(fromStroops(r.actualFare))) : "—"}
             </p>
           </div>
         </div>
@@ -199,9 +199,7 @@ function CashOutTab() {
   const [error, setError] = useState<string | null>(null);
 
   const amt = Number(amount) || 0;
-  // Illustrative comparison: a typical PH e-wallet cash-out vs Stellar network fee.
-  const ewalletFee = amt > 0 ? amt * 0.02 + 15 : 0; // 2% + ₱15
-  const stellarFee = 0.00001 * 6.5; // ~100 stroops XLM, *approx XLM/PHP
+  const stellarFee = 0.00001; // ~100 stroops base fee, in XLM
 
   async function withdraw(e: React.FormEvent) {
     e.preventDefault();
@@ -210,8 +208,8 @@ function CashOutTab() {
     setError(null);
     setMsg(null);
     try {
-      const hash = await sendPHPx(keypair, dest.trim(), amount);
-      setMsg(`Sent ${php(amt)} PHPx · tx ${hash.slice(0, 8)}…`);
+      const hash = await sendXlm(keypair, dest.trim(), amount);
+      setMsg(`Sent ${xlm(amt)} · tx ${hash.slice(0, 8)}…`);
       setAmount("");
       await refreshBalances();
     } catch (e: any) {
@@ -224,9 +222,9 @@ function CashOutTab() {
   return (
     <section className="space-y-4">
       <div className="card">
-        <h2 className="text-sm font-bold text-ink">Cash out PHPx</h2>
+        <h2 className="text-sm font-bold text-ink">Cash out XLM</h2>
         <p className="mt-1 text-xs text-slate-500">
-          Send your decentralized earnings to any Stellar address or PHPx anchor.
+          Send your decentralized earnings to any Stellar address.
         </p>
         <form onSubmit={withdraw} className="mt-4 space-y-3">
           <div>
@@ -239,7 +237,7 @@ function CashOutTab() {
             />
           </div>
           <div>
-            <label className="label">Amount (PHPx)</label>
+            <label className="label">Amount (XLM)</label>
             <input
               className="input"
               inputMode="decimal"
@@ -248,7 +246,7 @@ function CashOutTab() {
               placeholder="0.00"
             />
             <p className="mt-1 text-xs text-slate-500">
-              Available: {balances ? php(balances.phpx) : "—"}
+              Available: {balances ? xlm(balances.xlm) : "—"}
             </p>
           </div>
           {error && <p className="text-sm font-medium text-danger">{error}</p>}
@@ -261,12 +259,11 @@ function CashOutTab() {
 
       {amt > 0 && (
         <div className="card">
-          <h3 className="text-sm font-bold text-brand-dark">Why Stellar saves you money</h3>
+          <h3 className="text-sm font-bold text-brand-dark">Stellar keeps fees tiny</h3>
           <div className="mt-3 space-y-2 text-sm">
-            <Row label="Typical e-wallet cash-out" value={php(ewalletFee)} bad />
-            <Row label="Stellar network fee" value={php(stellarFee)} />
+            <Row label="Stellar network fee" value={xlm(stellarFee)} />
             <div className="border-t border-slate-100 pt-2">
-              <Row label="You keep on Stellar" value={php(amt - stellarFee)} good />
+              <Row label="You keep" value={xlm(Math.max(0, amt - stellarFee))} good />
             </div>
           </div>
         </div>

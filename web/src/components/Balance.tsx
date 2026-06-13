@@ -1,7 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import { useSession } from "@/lib/store";
-import { php } from "@/lib/format";
+import { xlm } from "@/lib/format";
 
 export function Balance() {
   const { balances, refreshBalances, loading } = useSession();
@@ -22,13 +22,13 @@ export function Balance() {
       />
       <div className="relative">
         <p className="text-xs font-semibold uppercase tracking-wider text-brand-light/90">
-          PHPx balance
+          XLM balance
         </p>
         <p className="mt-1 text-4xl font-extrabold tracking-tight text-white">
-          {balances ? php(balances.phpx) : "—"}
+          {balances ? xlm(balances.xlm) : "—"}
         </p>
         <p className="mt-1 text-xs text-white/55">
-          {balances ? `${Number(balances.xlm).toFixed(2)} XLM for fees` : "Loading wallet…"}
+          {balances ? "Native Stellar lumens" : "Loading wallet…"}
         </p>
       </div>
       <button

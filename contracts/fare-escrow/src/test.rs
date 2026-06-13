@@ -26,7 +26,7 @@ fn setup<'a>() -> Setup<'a> {
     let commuter = Address::generate(&env);
     let driver = Address::generate(&env);
 
-    // Deploy a Stellar Asset Contract to stand in for PHPx.
+    // Deploy a Stellar Asset Contract to stand in for the native XLM SAC.
     let issuer = Address::generate(&env);
     let sac = env.register_stellar_asset_contract_v2(issuer);
     let token = TokenClient::new(&env, &sac.address());
@@ -36,7 +36,7 @@ fn setup<'a>() -> Setup<'a> {
     let client = FareEscrowClient::new(&env, &contract_id);
     client.init(&admin, &sac.address());
 
-    // Give the commuter some PHPx (1,000.0000000).
+    // Give the commuter some XLM (1,000.0000000).
     token_admin.mint(&commuter, &1_000_0000000);
 
     Setup {
@@ -69,7 +69,7 @@ fn test_double_init_fails() {
 #[test]
 fn test_start_ride_locks_max_fare() {
     let s = setup();
-    let max_fare = 50_0000000i128; // 50 PHPx
+    let max_fare = 50_0000000i128; // 50 XLM
     let id = s
         .client
         .start_ride(&s.commuter, &s.driver, &symbol_short!("R_CUBAO"), &max_fare);

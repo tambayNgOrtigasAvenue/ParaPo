@@ -9,9 +9,9 @@ export interface RideReceipt {
   routeName: string;
   boardStop?: string;
   alightStop?: string;
-  maxFarePhp: number;
-  actualFarePhp?: number;
-  refundPhp?: number;
+  maxFare: number;
+  actualFare?: number;
+  refund?: number;
   status: "active" | "completed" | "cancelled";
   startedAt: number;
   finalizedAt?: number;

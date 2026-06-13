@@ -25,7 +25,7 @@ export function AppGate({ children }: { children: React.ReactNode }) {
         <div className="card w-full">
           <h1 className="text-lg font-extrabold text-accent">Not configured</h1>
           <p className="mt-2 text-sm text-slate-500">
-            The contract + PHPx addresses are missing. Run the deploy scripts to
+            The contract + XLM addresses are missing. Run the deploy scripts to
             generate <code className="rounded bg-brand/10 px-1 text-brand-dark">web/.env.local</code>:
           </p>
           <pre className="mt-3 overflow-x-auto rounded-2xl bg-ink p-3 text-left text-xs text-brand-light">

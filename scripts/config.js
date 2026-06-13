@@ -1,15 +1,9 @@
 // Shared configuration + helpers for ParaPo deployment scripts.
+// Settlement asset is native XLM, so there is no token to issue.
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import {
-  Horizon,
-  Keypair,
-  Asset,
-  Operation,
-  TransactionBuilder,
-  BASE_FEE,
-} from "@stellar/stellar-sdk";
+import { Keypair } from "@stellar/stellar-sdk";
 
 export const __dirname = dirname(fileURLToPath(import.meta.url));
 export const ROOT = join(__dirname, "..");
@@ -20,11 +14,6 @@ export const HORIZON_URL = "https://horizon-testnet.stellar.org";
 export const RPC_URL = "https://soroban-testnet.stellar.org";
 export const NETWORK_PASSPHRASE = "Test SDF Network ; September 2015";
 export const FRIENDBOT_URL = "https://friendbot.stellar.org";
-
-// --- Asset -----------------------------------------------------------------
-export const ASSET_CODE = "PHPx";
-// PHPx uses 7 decimals (Stellar standard). Issue 100,000,000 PHPx.
-export const PHPX_TOTAL_SUPPLY = "100000000";
 
 // --- Paths -----------------------------------------------------------------
 export const DEPLOYMENT_FILE = join(ROOT, "deployment.json");
@@ -37,8 +26,6 @@ export const WASM_PATH = join(
 );
 export const WEB_ENV_FILE = join(ROOT, "web", ".env.local");
 export const DEMO_ACCOUNTS_FILE = join(ROOT, "web", "public", "demo-accounts.json");
-
-export const horizon = new Horizon.Server(HORIZON_URL);
 
 // --- Deployment state ------------------------------------------------------
 export function loadDeployment() {
@@ -62,36 +49,4 @@ export async function fundWithFriendbot(publicKey) {
   // status 400 usually means "account already funded" — fine for idempotency.
 }
 
-/** Create a trustline from `holder` to PHPx and (optionally) pay it some PHPx. */
-export async function establishTrustline(holderKeypair, issuerPublicKey) {
-  const asset = new Asset(ASSET_CODE, issuerPublicKey);
-  const account = await horizon.loadAccount(holderKeypair.publicKey());
-  const tx = new TransactionBuilder(account, {
-    fee: BASE_FEE,
-    networkPassphrase: NETWORK_PASSPHRASE,
-  })
-    .addOperation(Operation.changeTrust({ asset }))
-    .setTimeout(3600)
-    .build();
-  tx.sign(holderKeypair);
-  return horizon.submitTransaction(tx);
-}
-
-/** Send PHPx from `fromKeypair` to `destPublicKey`. */
-export async function payPHPx(fromKeypair, destPublicKey, issuerPublicKey, amount) {
-  const asset = new Asset(ASSET_CODE, issuerPublicKey);
-  const account = await horizon.loadAccount(fromKeypair.publicKey());
-  const tx = new TransactionBuilder(account, {
-    fee: BASE_FEE,
-    networkPassphrase: NETWORK_PASSPHRASE,
-  })
-    .addOperation(
-      Operation.payment({ destination: destPublicKey, asset, amount: String(amount) })
-    )
-    .setTimeout(3600)
-    .build();
-  tx.sign(fromKeypair);
-  return horizon.submitTransaction(tx);
-}
-
-export { Keypair, Asset, Operation, TransactionBuilder, BASE_FEE };
+export { Keypair };

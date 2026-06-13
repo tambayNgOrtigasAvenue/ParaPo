@@ -1,50 +1,16 @@
-// Plain-JS mirror of web/src/lib/fares.ts so the oracle can compute fares.
-export const POLICIES = {
-  jeep: { base: 13, baseKm: 4, perKm: 1.8 },
-  ejeep: { base: 15, baseKm: 4, perKm: 2.2 },
-  bus: { base: 15, baseKm: 5, perKm: 2.65 },
-};
+// The oracle reads the SAME route + policy data as the web app, so the two can
+// never drift apart. The single source of truth is web/src/lib/fares.data.json.
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 
-export const ROUTES = [
-  {
-    id: "R_EDSA",
-    name: "EDSA Carousel (Monumento - Taft)",
-    vehicle: "bus",
-    stops: [
-      { name: "Monumento", km: 0 },
-      { name: "Balintawak", km: 3.2 },
-      { name: "Cubao", km: 8.5 },
-      { name: "Ortigas", km: 12.1 },
-      { name: "Guadalupe", km: 15.0 },
-      { name: "Ayala", km: 18.4 },
-      { name: "Taft Ave", km: 22.0 },
-    ],
-  },
-  {
-    id: "R_CUBAO",
-    name: "Cubao - SSS Village (Jeep)",
-    vehicle: "jeep",
-    stops: [
-      { name: "Cubao", km: 0 },
-      { name: "Anonas", km: 1.8 },
-      { name: "Katipunan", km: 3.5 },
-      { name: "Marikina Bridge", km: 6.2 },
-      { name: "SSS Village", km: 8.0 },
-    ],
-  },
-  {
-    id: "R_BGC",
-    name: "BGC Loop (E-Jeep)",
-    vehicle: "ejeep",
-    stops: [
-      { name: "Market! Market!", km: 0 },
-      { name: "Mind Museum", km: 1.2 },
-      { name: "High Street", km: 2.0 },
-      { name: "Uptown", km: 3.1 },
-      { name: "Terminal", km: 4.4 },
-    ],
-  },
-];
+const here = dirname(fileURLToPath(import.meta.url));
+const data = JSON.parse(
+  readFileSync(join(here, "..", "web", "src", "lib", "fares.data.json"), "utf8")
+);
+
+export const POLICIES = data.policies;
+export const ROUTES = data.routes;
 
 export function getRoute(id) {
   return ROUTES.find((r) => r.id === id);

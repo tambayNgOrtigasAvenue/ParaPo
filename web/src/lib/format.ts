@@ -3,13 +3,13 @@ export function shortKey(pub: string, n = 4): string {
   return `${pub.slice(0, n)}…${pub.slice(-n)}`;
 }
 
-export function php(amount: number | string): string {
+export function xlm(amount: number | string): string {
   const n = typeof amount === "string" ? Number(amount) : amount;
-  return new Intl.NumberFormat("en-PH", {
-    style: "currency",
-    currency: "PHP",
+  const formatted = new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 2,
+    maximumFractionDigits: 7,
   }).format(n);
+  return `${formatted} XLM`;
 }
 
 export function timeAgo(ts: number): string {

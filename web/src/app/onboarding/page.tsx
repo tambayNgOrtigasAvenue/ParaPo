@@ -13,7 +13,6 @@ import {
   Role,
 } from "@/lib/stellar/wallet";
 import { fundWithFriendbot } from "@/lib/stellar/client";
-import { establishTrustline } from "@/lib/stellar/phpx";
 import { Keypair } from "@stellar/stellar-sdk";
 import { shortKey } from "@/lib/format";
 
@@ -33,15 +32,9 @@ export default function Onboarding() {
     listWallets().then(setWallets);
   }, []);
 
-  async function provision(kp: Keypair, secret: string) {
+  async function provision(kp: Keypair, _secret: string) {
     setStatus("Funding account via Friendbot…");
     await fundWithFriendbot(kp.publicKey());
-    setStatus("Enabling PHPx trustline…");
-    try {
-      await establishTrustline(kp);
-    } catch {
-      // Trustline may already exist (re-imported wallet) — ignore.
-    }
   }
 
   function go(role: Role) {
@@ -241,7 +234,7 @@ export default function Onboarding() {
                   <span className="font-semibold capitalize text-ink">{acc.role}</span>
                   <span className="block text-xs text-slate-500">{shortKey(acc.publicKey)}</span>
                 </span>
-                <span className="pill bg-accent/15 text-accent">{acc.phpx} PHPx</span>
+                <span className="pill bg-accent/15 text-accent">{acc.xlm} XLM</span>
               </button>
             ))}
           </section>

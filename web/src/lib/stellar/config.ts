@@ -7,16 +7,18 @@ export const STELLAR = {
   networkPassphrase:
     process.env.NEXT_PUBLIC_NETWORK_PASSPHRASE ?? "Test SDF Network ; September 2015",
   friendbotUrl: "https://friendbot.stellar.org",
-  phpxCode: process.env.NEXT_PUBLIC_PHPX_CODE ?? "PHPx",
-  phpxIssuer: process.env.NEXT_PUBLIC_PHPX_ISSUER ?? "",
-  phpxSac: process.env.NEXT_PUBLIC_PHPX_SAC ?? "",
+  // Native XLM is settled through its Stellar Asset Contract (SAC).
+  xlmSac: process.env.NEXT_PUBLIC_XLM_SAC ?? "",
   fareEscrowId: process.env.NEXT_PUBLIC_FARE_ESCROW_ID ?? "",
+  // A funded public key used only to simulate read-only contract calls
+  // (e.g. the cooperative dashboard). Holds no custody.
+  readerPublicKey: process.env.NEXT_PUBLIC_READER ?? "",
   oracleUrl: process.env.NEXT_PUBLIC_ORACLE_URL ?? "",
 } as const;
 
-/** PHPx (and Stellar assets generally) use 7 decimal places. */
+/** XLM (and Stellar assets generally) use 7 decimal places (stroops). */
 export const STROOPS_PER_UNIT = 10_000_000n;
 
 export function isConfigured(): boolean {
-  return Boolean(STELLAR.fareEscrowId && STELLAR.phpxSac && STELLAR.phpxIssuer);
+  return Boolean(STELLAR.fareEscrowId && STELLAR.xlmSac);
 }

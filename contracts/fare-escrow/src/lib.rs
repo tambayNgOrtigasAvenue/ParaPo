@@ -3,7 +3,7 @@
 //!
 //! Lifecycle of a ride:
 //! 1. `start_ride` — commuter authorizes locking the maximum end-to-end route
-//!    fare (`max_fare`) of PHPx into this contract.
+//!    fare (`max_fare`) of XLM into this contract.
 //! 2. `finalize_ride` — commuter authorizes the actual fare for the distance
 //!    travelled. The driver receives `actual_fare`; the commuter is refunded
 //!    `max_fare - actual_fare`.
@@ -39,7 +39,7 @@ pub struct Ride {
     pub driver: Address,
     /// Short route identifier, e.g. `R_CUBAO` (symbols are <= 9 chars).
     pub route_id: Symbol,
-    /// Maximum end-to-end fare locked in escrow (stroops of PHPx, 7 decimals).
+    /// Maximum end-to-end fare locked in escrow (stroops of XLM, 7 decimals).
     pub max_fare: i128,
     /// Actual fare released to the driver once finalized.
     pub actual_fare: i128,
@@ -69,7 +69,7 @@ pub struct FareEscrow;
 
 #[contractimpl]
 impl FareEscrow {
-    /// Initialize the contract with an admin and the PHPx token (SAC) address.
+    /// Initialize the contract with an admin and the XLM token (SAC) address.
     pub fn init(env: Env, admin: Address, token: Address) -> Result<(), Error> {
         if env.storage().instance().has(&DataKey::Admin) {
             return Err(Error::AlreadyInitialized);
@@ -80,7 +80,7 @@ impl FareEscrow {
         Ok(())
     }
 
-    /// Board the vehicle: lock `max_fare` PHPx from the commuter into escrow.
+    /// Board the vehicle: lock `max_fare` XLM from the commuter into escrow.
     /// Requires the commuter's authorization. Returns the new ride id.
     pub fn start_ride(
         env: Env,
@@ -95,8 +95,7 @@ impl FareEscrow {
             return Err(Error::InvalidAmount);
         }
 
-        let token_addr = Self::get_token(env.clone())?;
-        let token_client = token::Client::new(&env, &token_addr);
+        let token_client = Self::token_client(&env)?;
         // Pull the locked fare into the contract's custody.
         token_client.transfer(&commuter, &env.current_contract_address(), &max_fare);
 
@@ -137,8 +136,7 @@ impl FareEscrow {
         // The commuter authorizes the final settlement amount.
         ride.commuter.require_auth();
 
-        let token_addr = Self::get_token(env.clone())?;
-        let token_client = token::Client::new(&env, &token_addr);
+        let token_client = Self::token_client(&env)?;
         let contract = env.current_contract_address();
 
         if actual_fare > 0 {
@@ -175,8 +173,7 @@ impl FareEscrow {
         }
         caller.require_auth();
 
-        let token_addr = Self::get_token(env.clone())?;
-        let token_client = token::Client::new(&env, &token_addr);
+        let token_client = Self::token_client(&env)?;
         token_client.transfer(
             &env.current_contract_address(),
             &ride.commuter,
@@ -212,7 +209,7 @@ impl FareEscrow {
             .unwrap_or(0)
     }
 
-    /// The PHPx token (SAC) address used for settlement.
+    /// The XLM token (SAC) address used for settlement.
     pub fn get_token(env: Env) -> Result<Address, Error> {
         env.storage()
             .instance()
@@ -226,6 +223,14 @@ impl FareEscrow {
             .instance()
             .get(&DataKey::Admin)
             .ok_or(Error::NotInitialized)
+    }
+
+    /// Build a token client for the configured XLM (SAC) address.
+    /// Centralizes the "load token address + make client" step the money
+    /// functions all share.
+    fn token_client<'a>(env: &'a Env) -> Result<token::Client<'a>, Error> {
+        let token_addr = Self::get_token(env.clone())?;
+        Ok(token::Client::new(env, &token_addr))
     }
 
     fn next_ride_id(env: &Env) -> u64 {

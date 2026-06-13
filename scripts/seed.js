@@ -1,55 +1,41 @@
-// Step 3 — Seed demo wallets: a driver and a commuter, funded with XLM and PHPx,
-// written to web/public/demo-accounts.json for one-tap import in the PWA.
+// Step 3 — Seed demo wallets: a driver and a commuter, funded with XLM via
+// Friendbot, written to web/public/demo-accounts.json for one-tap import.
 //
 //   node seed.js
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import {
   Keypair,
-  horizon,
   fundWithFriendbot,
-  establishTrustline,
-  payPHPx,
   loadDeployment,
   DEMO_ACCOUNTS_FILE,
 } from "./config.js";
 
-const COMMUTER_PHPX = "500"; // give the commuter 500 PHPx to ride with
-const DRIVER_PHPX = "10"; // small float so the driver account is reserve-ready
+// Friendbot funds each new testnet account with 10,000 XLM.
+const FRIENDBOT_XLM = "10000";
 
-async function makeAccount(role, issuerPublicKey, distributor, amount) {
+async function makeAccount(role) {
   const kp = Keypair.random();
   console.log(`\n${role}: ${kp.publicKey()}`);
   await fundWithFriendbot(kp.publicKey());
-  await establishTrustline(kp, issuerPublicKey);
-  if (Number(amount) > 0) {
-    await payPHPx(distributor, kp.publicKey(), issuerPublicKey, amount);
-  }
-  return { role, publicKey: kp.publicKey(), secret: kp.secret(), phpx: amount };
+  return { role, publicKey: kp.publicKey(), secret: kp.secret(), xlm: FRIENDBOT_XLM };
 }
 
 async function main() {
   console.log("ParaPo :: seeding demo wallets\n");
   const d = loadDeployment();
-  if (!d.issuer || !d.distributor) {
+  if (!d.admin) {
     throw new Error("Run `npm run setup` (and `npm run deploy`) first.");
   }
-  const distributor = Keypair.fromSecret(d.distributor.secret);
-  const issuerPublic = d.issuer.publicKey;
 
-  const driver = await makeAccount("driver", issuerPublic, distributor, DRIVER_PHPX);
-  const commuter = await makeAccount(
-    "commuter",
-    issuerPublic,
-    distributor,
-    COMMUTER_PHPX
-  );
+  const driver = await makeAccount("driver");
+  const commuter = await makeAccount("commuter");
 
   const payload = {
     network: "testnet",
-    phpxIssuer: issuerPublic,
-    phpxSac: d.sacId ?? null,
+    xlmSac: d.sacId ?? null,
     fareEscrowId: d.contractId ?? null,
+    reader: d.admin.publicKey,
     accounts: [driver, commuter],
     note: "Demo testnet wallets. Import via the ParaPo onboarding screen.",
   };

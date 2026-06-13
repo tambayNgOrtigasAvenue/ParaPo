@@ -1,5 +1,10 @@
 // PUV fare matrix + discount logic. Distances are in kilometers; fares in PHP.
 // Simplified from LTFRB-style distance fares (base fare + per-km increment).
+//
+// The route + policy DATA lives in `fares.data.json` (the single source of
+// truth shared with the oracle). This file adds the TypeScript types and the
+// fare math on top of that data.
+import fareData from "./fares.data.json";
 
 export type Vehicle = "jeep" | "ejeep" | "bus";
 export type Discount = "regular" | "student" | "senior" | "pwd";
@@ -10,11 +15,7 @@ export interface FarePolicy {
   perKm: number; // increment per km beyond baseKm
 }
 
-export const POLICIES: Record<Vehicle, FarePolicy> = {
-  jeep: { base: 13, baseKm: 4, perKm: 1.8 },
-  ejeep: { base: 15, baseKm: 4, perKm: 2.2 },
-  bus: { base: 15, baseKm: 5, perKm: 2.65 },
-};
+export const POLICIES = fareData.policies as Record<Vehicle, FarePolicy>;
 
 export interface Stop {
   name: string;
@@ -28,46 +29,7 @@ export interface Route {
   stops: Stop[];
 }
 
-export const ROUTES: Route[] = [
-  {
-    id: "R_EDSA",
-    name: "EDSA Carousel (Monumento - Taft)",
-    vehicle: "bus",
-    stops: [
-      { name: "Monumento", km: 0 },
-      { name: "Balintawak", km: 3.2 },
-      { name: "Cubao", km: 8.5 },
-      { name: "Ortigas", km: 12.1 },
-      { name: "Guadalupe", km: 15.0 },
-      { name: "Ayala", km: 18.4 },
-      { name: "Taft Ave", km: 22.0 },
-    ],
-  },
-  {
-    id: "R_CUBAO",
-    name: "Cubao - SSS Village (Jeep)",
-    vehicle: "jeep",
-    stops: [
-      { name: "Cubao", km: 0 },
-      { name: "Anonas", km: 1.8 },
-      { name: "Katipunan", km: 3.5 },
-      { name: "Marikina Bridge", km: 6.2 },
-      { name: "SSS Village", km: 8.0 },
-    ],
-  },
-  {
-    id: "R_BGC",
-    name: "BGC Loop (E-Jeep)",
-    vehicle: "ejeep",
-    stops: [
-      { name: "Market! Market!", km: 0 },
-      { name: "Mind Museum", km: 1.2 },
-      { name: "High Street", km: 2.0 },
-      { name: "Uptown", km: 3.1 },
-      { name: "Terminal", km: 4.4 },
-    ],
-  },
-];
+export const ROUTES = fareData.routes as unknown as Route[];
 
 export function getRoute(id: string): Route | undefined {
   return ROUTES.find((r) => r.id === id);
