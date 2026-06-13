@@ -1,0 +1,37 @@
+# Rust
+/target
+**/*.rs.bk
+Cargo.lock
+
+# Node
+node_modules/
+.pnp.*
+.yarn/*
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Env / secrets
+.env
+.env.local
+.env*.local
+*.key
+.parapo/
+.stellar/
+# Holds issuer/distributor secret keys (testnet, but keep out of git).
+deployment.json
+# Demo wallet secrets (testnet only) — regenerate with `npm run seed`.
+web/public/demo-accounts.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

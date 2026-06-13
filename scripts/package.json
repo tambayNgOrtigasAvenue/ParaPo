@@ -1,0 +1,16 @@
+{
+  "name": "parapo-scripts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "ParaPo deployment scripts: issue PHPx, wrap SAC, deploy fare-escrow, seed demo wallets.",
+  "scripts": {
+    "setup": "node setup.js",
+    "deploy": "node deploy.js",
+    "seed": "node seed.js",
+    "all": "node setup.js && node deploy.js && node seed.js"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^13.1.0"
+  }
+}

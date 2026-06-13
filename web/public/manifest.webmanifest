@@ -1,0 +1,18 @@
+{
+  "name": "ParaPo — PUV Fare Wallet",
+  "short_name": "ParaPo",
+  "description": "Decentralized PUV fare payments on Stellar. Scan to ride, pay the exact fare, refunded automatically.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1120",
+  "theme_color": "#0b1120",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

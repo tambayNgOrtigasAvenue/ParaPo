@@ -1,0 +1,15 @@
+{
+  "name": "parapo-oracle",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "ParaPo route fare-matrix + GPS distance attestation API.",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "cors": "^2.8.5"
+  }
+}
