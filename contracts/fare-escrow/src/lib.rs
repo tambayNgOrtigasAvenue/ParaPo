@@ -3,23 +3,40 @@
 //!
 //! Lifecycle of a ride:
 //! 1. `start_ride` — commuter authorizes locking the maximum end-to-end route
-//!    fare (`max_fare`) of XLM into this contract.
+//!    fare (`max_fare`) of XLM into this contract. The driver must be
+//!    registered in the `driver-vault` contract.
 //! 2. `finalize_ride` — commuter authorizes the actual fare for the distance
-//!    travelled. The driver receives `actual_fare`; the commuter is refunded
-//!    `max_fare - actual_fare`.
+//!    travelled. The driver's share is sent to the `driver-vault` (which
+//!    records the driver's balance); the commuter is refunded the remainder.
 //! 3. `cancel_ride` — either party can cancel an active ride; the full locked
 //!    amount is refunded to the commuter (used for disputes / no-shows).
+//!
+//! Driver registration and driver fund balances live in a separate contract,
+//! `driver-vault`. This contract only handles the per-ride escrow.
 
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, symbol_short, token, Address, BytesN, Env,
-    Symbol,
+    contract, contractclient, contracterror, contractimpl, contracttype, symbol_short, token,
+    Address, BytesN, Env, Symbol,
 };
+
+/// The slice of the `driver-vault` contract this contract needs to call.
+///
+/// Declaring it here (instead of depending on the driver-vault crate) keeps the
+/// vault's code out of this contract's wasm — we only generate a thin client to
+/// make the cross-contract calls. The signatures must match driver-vault.
+#[contractclient(name = "VaultClient")]
+pub trait DriverVaultInterface {
+    fn is_registered(env: Env, driver: Address) -> bool;
+    fn credit(env: Env, driver: Address, amount: i128);
+}
 
 #[contracttype]
 #[derive(Clone)]
 enum DataKey {
     Admin,
     Token,
+    /// Address of the `driver-vault` contract (driver registry + balances).
+    DriverVault,
     RideCount,
     Ride(u64),
 }
@@ -63,6 +80,8 @@ pub enum Error {
     InvalidAmount = 6,
     /// Caller is neither the commuter nor the driver of the ride.
     NotAuthorized = 7,
+    /// Driver is not registered in the driver-vault contract.
+    DriverNotRegistered = 8,
 }
 
 #[contract]
@@ -70,19 +89,28 @@ pub struct FareEscrow;
 
 #[contractimpl]
 impl FareEscrow {
-    /// Initialize the contract with an admin and the XLM token (SAC) address.
-    pub fn init(env: Env, admin: Address, token: Address) -> Result<(), Error> {
+    /// Initialize with the admin, the XLM token (SAC), and the address of the
+    /// `driver-vault` contract that tracks registered drivers and balances.
+    pub fn init(
+        env: Env,
+        admin: Address,
+        token: Address,
+        driver_vault: Address,
+    ) -> Result<(), Error> {
         if env.storage().instance().has(&DataKey::Admin) {
             return Err(Error::AlreadyInitialized);
         }
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::Token, &token);
+        env.storage()
+            .instance()
+            .set(&DataKey::DriverVault, &driver_vault);
         env.storage().instance().set(&DataKey::RideCount, &0u64);
         Ok(())
     }
 
     /// Board the vehicle: lock `max_fare` XLM from the commuter into escrow.
-    /// Requires the commuter's authorization. Returns the new ride id.
+    /// The driver must be registered in the driver-vault. Returns the ride id.
     pub fn start_ride(
         env: Env,
         commuter: Address,
@@ -96,8 +124,14 @@ impl FareEscrow {
             return Err(Error::InvalidAmount);
         }
 
+        // Only coop-approved drivers (registered in the vault) can collect fares.
+        let vault = Self::driver_vault_client(&env)?;
+        if !vault.is_registered(&driver) {
+            return Err(Error::DriverNotRegistered);
+        }
+
         let token_client = Self::token_client(&env)?;
-        // Pull the locked fare into the contract's custody.
+        // Pull the locked fare into this contract's custody.
         token_client.transfer(&commuter, &env.current_contract_address(), &max_fare);
 
         let id = Self::next_ride_id(&env);
@@ -122,9 +156,9 @@ impl FareEscrow {
         Ok(id)
     }
 
-    /// Alight the vehicle: release `actual_fare` to the driver and refund the
-    /// remainder to the commuter. Requires the commuter's authorization (the
-    /// commuter agrees to the fare computed from the GPS route + fare matrix).
+    /// Alight the vehicle: send `actual_fare` to the driver-vault (crediting the
+    /// driver's balance) and refund the remainder to the commuter. Requires the
+    /// commuter's authorization.
     pub fn finalize_ride(env: Env, ride_id: u64, actual_fare: i128) -> Result<Ride, Error> {
         let mut ride = Self::get_ride(env.clone(), ride_id)?;
         if ride.status != RideStatus::Active {
@@ -141,8 +175,14 @@ impl FareEscrow {
         let contract = env.current_contract_address();
 
         if actual_fare > 0 {
-            token_client.transfer(&contract, &ride.driver, &actual_fare);
+            // Move the driver's share into the vault, then record it on-chain.
+            let vault_addr = Self::get_driver_vault(env.clone())?;
+            token_client.transfer(&contract, &vault_addr, &actual_fare);
+
+            let vault = Self::driver_vault_client(&env)?;
+            vault.credit(&ride.driver, &actual_fare);
         }
+
         let refund = ride.max_fare - actual_fare;
         if refund > 0 {
             token_client.transfer(&contract, &ride.commuter, &refund);
@@ -218,6 +258,14 @@ impl FareEscrow {
             .ok_or(Error::NotInitialized)
     }
 
+    /// The driver-vault contract address (driver registry + balances).
+    pub fn get_driver_vault(env: Env) -> Result<Address, Error> {
+        env.storage()
+            .instance()
+            .get(&DataKey::DriverVault)
+            .ok_or(Error::NotInitialized)
+    }
+
     /// The admin address.
     pub fn get_admin(env: Env) -> Result<Address, Error> {
         env.storage()
@@ -226,9 +274,13 @@ impl FareEscrow {
             .ok_or(Error::NotInitialized)
     }
 
+    /// Build a client for the configured driver-vault contract.
+    fn driver_vault_client(env: &Env) -> Result<VaultClient<'_>, Error> {
+        let addr = Self::get_driver_vault(env.clone())?;
+        Ok(VaultClient::new(env, &addr))
+    }
+
     /// Build a token client for the configured XLM (SAC) address.
-    /// Centralizes the "load token address + make client" step the money
-    /// functions all share.
     fn token_client<'a>(env: &'a Env) -> Result<token::Client<'a>, Error> {
         let token_addr = Self::get_token(env.clone())?;
         Ok(token::Client::new(env, &token_addr))

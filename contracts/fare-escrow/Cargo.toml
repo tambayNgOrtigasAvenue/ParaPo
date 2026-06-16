@@ -14,3 +14,8 @@ soroban-sdk = "22"
 
 [dev-dependencies]
 soroban-sdk = { version = "22", features = ["testutils"] }
+# Only needed by the tests, which register a real driver-vault to call into.
+# It is NOT a runtime dependency: the contract calls the vault through the
+# `VaultClient` interface declared in `lib.rs`, so the vault's code is never
+# linked into this contract's wasm.
+driver-vault = { path = "../driver-vault" }

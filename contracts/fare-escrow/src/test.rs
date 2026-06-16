@@ -1,17 +1,20 @@
 #![cfg(test)]
 
 use super::*;
+use driver_vault::{DriverVault, DriverVaultClient};
 use soroban_sdk::{
     symbol_short,
     testutils::Address as _,
     token::{StellarAssetClient, TokenClient},
-    Address, Env,
+    Address, BytesN, Env,
 };
 
 struct Setup<'a> {
     env: Env,
     contract_id: Address,
+    vault_id: Address,
     client: FareEscrowClient<'a>,
+    vault: DriverVaultClient<'a>,
     token: TokenClient<'a>,
     token_admin: StellarAssetClient<'a>,
     commuter: Address,
@@ -26,7 +29,6 @@ fn setup<'a>() -> Setup<'a> {
     let commuter = Address::generate(&env);
     let driver = Address::generate(&env);
 
-    // Deploy a Stellar Asset Contract to stand in for the native XLM SAC.
     let issuer = Address::generate(&env);
     let sac = env.register_stellar_asset_contract_v2(issuer);
     let token = TokenClient::new(&env, &sac.address());
@@ -34,15 +36,23 @@ fn setup<'a>() -> Setup<'a> {
 
     let contract_id = env.register(FareEscrow, ());
     let client = FareEscrowClient::new(&env, &contract_id);
-    client.init(&admin, &sac.address());
 
-    // Give the commuter some XLM (1,000.0000000).
+    let vault_id = env.register(DriverVault, ());
+    let vault = DriverVaultClient::new(&env, &vault_id);
+    vault.init(&admin, &sac.address());
+    vault.set_escrow(&contract_id);
+    vault.register_driver(&driver);
+
+    client.init(&admin, &sac.address(), &vault_id);
+
     token_admin.mint(&commuter, &1_000_0000000);
 
     Setup {
         env,
         contract_id,
+        vault_id,
         client,
+        vault,
         token,
         token_admin,
         commuter,
@@ -54,6 +64,7 @@ fn setup<'a>() -> Setup<'a> {
 fn test_init_sets_state() {
     let s = setup();
     assert_eq!(s.client.get_token(), s.token.address);
+    assert_eq!(s.client.get_driver_vault(), s.vault_id);
     assert_eq!(s.client.get_ride_count(), 0);
 }
 
@@ -62,20 +73,18 @@ fn test_init_sets_state() {
 fn test_double_init_fails() {
     let s = setup();
     let other = Address::generate(&s.env);
-    // Already initialized in setup; a second init must panic.
-    s.client.init(&other, &s.token.address);
+    s.client.init(&other, &s.token.address, &s.vault_id);
 }
 
 #[test]
 fn test_start_ride_locks_max_fare() {
     let s = setup();
-    let max_fare = 50_0000000i128; // 50 XLM
+    let max_fare = 50_0000000i128;
     let id = s
         .client
         .start_ride(&s.commuter, &s.driver, &symbol_short!("R_CUBAO"), &max_fare);
 
     assert_eq!(id, 0);
-    // Commuter balance reduced, escrow holds the locked fare.
     assert_eq!(s.token.balance(&s.commuter), 1_000_0000000 - max_fare);
     assert_eq!(s.token.balance(&s.contract_id), max_fare);
 
@@ -86,10 +95,23 @@ fn test_start_ride_locks_max_fare() {
 }
 
 #[test]
+fn test_start_ride_unregistered_driver_fails() {
+    let s = setup();
+    let stranger = Address::generate(&s.env);
+    let res = s.client.try_start_ride(
+        &s.commuter,
+        &stranger,
+        &symbol_short!("R_CUBAO"),
+        &50_0000000,
+    );
+    assert_eq!(res, Err(Ok(Error::DriverNotRegistered)));
+}
+
+#[test]
 fn test_finalize_partial_route_refunds_remainder() {
     let s = setup();
     let max_fare = 50_0000000i128;
-    let actual = 30_0000000i128; // commuter alighted early
+    let actual = 30_0000000i128;
     let id = s
         .client
         .start_ride(&s.commuter, &s.driver, &symbol_short!("R_CUBAO"), &max_fare);
@@ -98,14 +120,13 @@ fn test_finalize_partial_route_refunds_remainder() {
 
     assert_eq!(ride.status, RideStatus::Completed);
     assert_eq!(ride.actual_fare, actual);
-    // Driver paid actual fare.
-    assert_eq!(s.token.balance(&s.driver), actual);
-    // Commuter refunded the remainder.
+    assert_eq!(s.vault.get_balance(&s.driver), actual);
+    assert_eq!(s.token.balance(&s.vault_id), actual);
+    assert_eq!(s.token.balance(&s.driver), 0);
     assert_eq!(
         s.token.balance(&s.commuter),
         1_000_0000000 - max_fare + (max_fare - actual)
     );
-    // Escrow drained.
     assert_eq!(s.token.balance(&s.contract_id), 0);
 }
 
@@ -119,7 +140,8 @@ fn test_finalize_full_route_no_refund() {
 
     s.client.finalize_ride(&id, &max_fare);
 
-    assert_eq!(s.token.balance(&s.driver), max_fare);
+    assert_eq!(s.vault.get_balance(&s.driver), max_fare);
+    assert_eq!(s.token.balance(&s.vault_id), max_fare);
     assert_eq!(s.token.balance(&s.commuter), 1_000_0000000 - max_fare);
     assert_eq!(s.token.balance(&s.contract_id), 0);
 }
@@ -155,10 +177,9 @@ fn test_cancel_refunds_full_amount() {
 
     let ride = s.client.cancel_ride(&id, &s.driver);
     assert_eq!(ride.status, RideStatus::Cancelled);
-    // Full refund, escrow empty, driver got nothing.
     assert_eq!(s.token.balance(&s.commuter), 1_000_0000000);
     assert_eq!(s.token.balance(&s.contract_id), 0);
-    assert_eq!(s.token.balance(&s.driver), 0);
+    assert_eq!(s.vault.get_balance(&s.driver), 0);
 }
 
 #[test]
@@ -192,6 +213,24 @@ fn test_get_missing_ride_fails() {
     let s = setup();
     let res = s.client.try_get_ride(&999);
     assert_eq!(res, Err(Ok(Error::RideNotFound)));
-    // Silence unused warning for token_admin in some builds.
     let _ = &s.token_admin;
+}
+
+#[test]
+fn test_upgrade_requires_admin_auth() {
+    let env = Env::default();
+    let admin = Address::generate(&env);
+    let issuer = Address::generate(&env);
+    let sac = env.register_stellar_asset_contract_v2(issuer);
+    let vault_id = env.register(DriverVault, ());
+    let vault = DriverVaultClient::new(&env, &vault_id);
+
+    let contract_id = env.register(FareEscrow, ());
+    let client = FareEscrowClient::new(&env, &contract_id);
+    vault.init(&admin, &sac.address());
+    client.init(&admin, &sac.address(), &vault_id);
+
+    let bogus_hash = BytesN::from_array(&env, &[0u8; 32]);
+    let res = client.try_upgrade(&bogus_hash);
+    assert!(res.is_err());
 }
