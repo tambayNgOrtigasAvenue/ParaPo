@@ -47,6 +47,32 @@ Alight --> finalize_ride(fare)   --> driver gets fare, commuter refunded the res
   in IndexedDB. No extension required (works on mobile browsers).
 
 > Testnet only. No real funds are ever used.
+## Project Vision
+
+ParaPo envisions a modern, decentralized public transport system in the Philippines where drivers and operators are fully self-sovereign over their income, and commuters get fair, transparent, exact, and micro-payment-friendly pricing. By leveraging the low-cost, high-speed, non-custodial design of Stellar and Soroban, we aim to eliminate the need for centralized card schemes, payment intermediaries, and manual change handling—fostering trust and convenience in the daily commute.
+
+## Key Features
+
+- **Escrow-Protected Fares (Soroban Smart Contracts)**: Commuter funds are securely locked in a smart contract at boarding and released only upon travel completion or cancellation.
+- **Dynamic GPS Route & Distance Settlement**: Integrates with a GPS oracle to compute exact route-based pricing, automatically refunding the passenger for any untravelled distance.
+- **Rotating Anti-Replay QR Codes**: Driver session QR codes rotate using cryptographic signatures and nonces to prevent passenger boarding fraud via static screenshots.
+- **Non-Custodial Wallet Integration**: Features in-browser keypair generation encrypted in IndexedDB for mobile/offline-first use, alongside Freighter wallet connection for desktop.
+- **Cooperative Read-Only Auditing**: Provides transportation cooperatives with transparent visibility into rides and collective earnings without granting them custody or control over individual driver wallets.
+- **Low-Fee Native Asset (XLM) Payments**: Built on Stellar's fast ledger, ensuring sub-cent fee payments with quick finality.
+
+## Future Scope
+
+- **Stablecoin Fare Support**: Expand payment options to include Stellar-native stablecoins (e.g., PHPC or USDC) to hedge against XLM price volatility during long-distance transits.
+- **Automated Cooperative Dividends & Taxes**: Extend the smart contracts to split fares automatically, routing cooperative fees or government taxes directly at the point of payment.
+- **Offline-to-Offline (O2O) Payments via Horizon Bridge**: Enable transaction signing in environments with intermittent cell reception using Stellar's off-chain transaction serialization, queueing, and local storage synchronization.
+- **Sub-route/Multi-leg Journeys**: Support multi-leg transfers (e.g., jeepney to bus) with a single unified boarding escrow ticket.
+
+## Deployed Smart Contracts
+
+| Smart Contract Name | Network | Contract ID | Explorer Link |
+| :--- | :--- | :--- | :--- |
+| **`fare-escrow`** | Testnet | `CCYEPCDQUFDFSAWC3JEVLSY3BN4AHZ7KHMZM5QBLXWQJENZXFFIJ54DR` | [Stellar.Expert](https://stellar.expert/explorer/testnet/contract/CCYEPCDQUFDFSAWC3JEVLSY3BN4AHZ7KHMZM5QBLXWQJENZXFFIJ54DR) |
+| **`driver-vault`** | Testnet | `CB5DI4CE5CXUW7NEPOTGC5EA6H3Q5SWJ2O24XXHHU7TYNX72BKGMTHGX` | [Stellar.Expert](https://stellar.expert/explorer/testnet/contract/CB5DI4CE5CXUW7NEPOTGC5EA6H3Q5SWJ2O24XXHHU7TYNX72BKGMTHGX) |
 
 ## Monorepo layout
 
