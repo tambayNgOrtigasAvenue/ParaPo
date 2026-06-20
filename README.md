@@ -139,21 +139,22 @@ npm run dev          # http://localhost:4000
 
 ## Screenshots
 
+### Homepage / Landing Page
+
+![Homepage](screenshots/Screenshot%202026-06-20%20160429.png)
+
 ### Wallet connected state
 
-_TODO: add screenshot_
+![Wallet Connected State](screenshots/Screenshot%202026-06-20%20162622.png)
 
 ### Balance displayed
 
-_TODO: add screenshot_
+![Balance Displayed](screenshots/Screenshot%202026-06-20%20160502.png)
 
 ### Successful testnet transaction
 
-_TODO: add screenshot_
-
-### Transaction result shown to the user
-
-_TODO: add screenshot_
+![Successful Testnet Transaction - Part 1](screenshots/Screenshot%202026-06-20%20163531.png)
+![Successful Testnet Transaction - Part 2](screenshots/Screenshot%202026-06-20%20163543.png)
 
 ## License
 
