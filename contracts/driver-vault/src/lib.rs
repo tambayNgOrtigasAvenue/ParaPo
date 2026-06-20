@@ -7,7 +7,7 @@
 //! - Drivers withdraw accumulated XLM to their own wallet when ready.
 
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, symbol_short, token, Address, Env,
+    contract, contracterror, contractimpl, contracttype, symbol_short, token, Address, Env, BytesN,
 };
 
 #[contracttype]
@@ -166,6 +166,13 @@ impl DriverVault {
     fn token_client<'a>(env: &'a Env) -> Result<token::Client<'a>, Error> {
         let token_addr = Self::get_token(env.clone())?;
         Ok(token::Client::new(env, &token_addr))
+    }
+
+    pub fn upgrade(env: Env, new_wasm_hash: BytesN<32>) {
+        let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
+        admin.require_auth();
+
+        env.deployer().update_current_contract_wasm(new_wasm_hash);
     }
 }
 
